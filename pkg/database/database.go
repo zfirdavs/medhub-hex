@@ -1,8 +1,23 @@
 package database
 
+import (
+	"context"
+
+	"github.com/jackc/pgx/v4/pgxpool"
+)
+
 type exists struct {
 	tableName string
 	clauses   map[string]interface{}
+}
+
+// NewPool creates a new pgx interface database pool
+func NewPool(ctx context.Context, connString string) (*pgxpool.Pool, error) {
+	dbpool, err := pgxpool.Connect(ctx, connString)
+	if err != nil {
+		return nil, err
+	}
+	return dbpool, nil
 }
 
 // func IsExists(strct exists) (bool, error) {
