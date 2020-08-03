@@ -11,4 +11,5 @@ require (
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/jackc/pgx/v4 v4.7.1
 	github.com/valyala/fastjson v1.5.3
+	go.uber.org/zap v1.15.0
 )
