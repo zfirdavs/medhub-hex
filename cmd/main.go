@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,11 +12,18 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/jackc/pgx/v4/pgxpool"
-	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/medhub-hex/pkg/database"
 	"github.com/medhub-hex/pkg/fhir"
 	"github.com/medhub-hex/pkg/http/rest"
+	zaplogger "github.com/medhub-hex/pkg/logger"
+	"go.uber.org/zap"
 )
+
+var loggerLevel string
+
+func init() {
+	flag.StringVar(&loggerLevel, "logger-level", "debug", "allowed value for logger level: debug, info, warn, error, error, dpanic, panic, fatal")
+}
 
 func main() {
 	dbpool, err := pgxpool.Connect(context.Background(), os.Getenv("DB_URL"))
@@ -25,15 +33,25 @@ func main() {
 	}
 	defer dbpool.Close()
 
+	// Logger initialization
+	logger, err := zaplogger.NewDevZapLogger(loggerLevel)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s", err.Error())
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
 	sq := database.NewSquirrel()
 	repo := fhir.NewPostresRepository(dbpool, sq)
 	service := fhir.NewService(repo)
 	fhirHandler := fhir.NewHandler(service).(*fhir.Handler)
 
+	middleware := rest.NewMiddleware(logger)
 	r := chi.NewRouter()
-	r.Use(rest.Recoverer)
-	r.Use(rest.ContentTypeJson)
-	r.Use(rest.Cors)
+	r.Use(middleware.Log)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.ContentTypeJson)
+	r.Use(middleware.Cors)
 	r.Route("/api/baseR4/{resourceType}", func(r chi.Router) {
 		r.Mount("/", fhirHandler.Routes())
 	})
@@ -48,7 +66,7 @@ func main() {
 
 	errs := make(chan error, 2)
 	go func() {
-		fmt.Println("Listening on port: ", server.Addr)
+		logger.Info("Listen", zap.String("port", server.Addr))
 		errs <- server.ListenAndServe()
 	}()
 

@@ -2,7 +2,6 @@ package fhir
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -70,7 +69,6 @@ func (h Handler) Post(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = json.Unmarshal(requestBody, &fhirResource); err != nil {
-		fmt.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -91,7 +89,6 @@ func (h Handler) Post(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if string(jsonResource.GetStringBytes("resourceType")) != resourceType {
-		fmt.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -106,7 +103,6 @@ func (h Handler) Post(w http.ResponseWriter, r *http.Request) {
 
 	output, err := h.fhirService.Create(r.Context(), resource)
 	if err != nil {
-		fmt.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}

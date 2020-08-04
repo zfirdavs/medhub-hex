@@ -1,18 +1,37 @@
 package rest
 
 import (
-	"log"
 	"net/http"
+	"time"
+
+	"go.uber.org/zap"
 )
 
-func ContentTypeJson(next http.Handler) http.Handler {
+type Middleware struct {
+	logger *zap.Logger
+}
+
+func NewMiddleware(zaplogger *zap.Logger) *Middleware {
+	return &Middleware{logger: zaplogger}
+}
+
+func (m *Middleware) Log(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t1 := time.Now()
+		next.ServeHTTP(w, r)
+		t2 := time.Now()
+		m.logger.Info("request", zap.String("method", r.Method), zap.String("route", r.URL.Path), zap.Duration("time", t2.Sub(t1)))
+	})
+}
+
+func (m *Middleware) ContentTypeJson(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		next.ServeHTTP(w, r)
 	})
 }
 
-func Cors(next http.Handler) http.Handler {
+func (m *Middleware) Cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Headers",
 			"accept, accept-encoding, authorization, content-type, dnt, origin, user-agent, x-csrftoken, x-requested-with, Access-Control-Allow-Origin")
@@ -24,12 +43,13 @@ func Cors(next http.Handler) http.Handler {
 	})
 }
 
-func Recoverer(next http.Handler) http.Handler {
+func (m *Middleware) Recoverer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			if r := recover(); r != nil {
-				log.Println("panic recovered: ", r)
+			if rec := recover(); rec != nil {
+				m.logger.Error("panic recovered", zap.Any("cause", rec), zap.String("method", r.Method), zap.String("route", r.URL.Path))
 			}
 		}()
+		next.ServeHTTP(w, r)
 	})
 }
