@@ -93,14 +93,6 @@ func (r *postgresRepository) Create(ctx context.Context, resource *Resource) (*R
 		return nil, fmt.Errorf("error during resource create model sql: %w", err)
 	}
 
-	// sqlStr := `
-	// 			INSERT INTO resource
-	// 			(resource_id, practitioner_id, resource_type, clinic, data, created_at)
-	// 			VALUES
-	// 			($1, $2, $3, $4, $5, $6);
-
-	// `
-
 	if _, err = conn.Exec(ctx, sqlStr, args...); err != nil {
 		return nil, err
 	}
